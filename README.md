@@ -1,4 +1,12 @@
 
+<img width="1906" height="855" alt="Screenshot 2026-01-08 043744" src="https://github.com/user-attachments/assets/0368801e-3d52-4ba0-bcb4-bee6b31edbb4" />
+<img width="1898" height="857" alt="Screenshot 2026-01-08 043703" src="https://github.com/user-attachments/assets/8221c601-c763-4156-8de6-1c67228c7716" />
+<img width="1907" height="857" alt="Screenshot 2026-01-08 043725" src="https://github.com/user-attachments/assets/781eba01-f5aa-447c-ba0a-343431991523" />
+
+
+https://github.com/user-attachments/assets/5eb035e5-f07b-4c8a-950f-1eb4b74c2547
+
+
 # ProQuote: Kurumsal Teklif Yönetim ve Doğrulama Sistemi
 
 ProQuote, karmaşık ürün kataloglarını dijital bir veri bankasına dönüştüren ve müşteri taleplerini bu verilerle eşleştirerek hatasız teklifler oluşturan profesyonel bir operasyonel asistan yazılımıdır.
