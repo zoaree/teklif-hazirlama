@@ -5,6 +5,7 @@
 
 
 https://github.com/user-attachments/assets/5eb035e5-f07b-4c8a-950f-1eb4b74c2547
+[Teklif_Musteri_08-01-2026 (1).pdf](https://github.com/user-attachments/files/24486025/Teklif_Musteri_08-01-2026.1.pdf)
 
 
 # ProQuote: Kurumsal Teklif Yönetim ve Doğrulama Sistemi
