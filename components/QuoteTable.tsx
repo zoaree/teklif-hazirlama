@@ -33,18 +33,18 @@ export const QuoteTable: React.FC<QuoteTableProps> = ({
     const item = { ...updatedItems[index], [field]: value };
     
     if (field === 'listPrice' || field === 'quantity' || field === 'discountRate') {
-        const listPrice = Number(field === 'listPrice' ? value : item.listPrice);
-        const quantity = Number(field === 'quantity' ? value : item.quantity);
-        const discountRate = Number(field === 'discountRate' ? value : item.discountRate);
+        const listPrice = field === 'listPrice' ? Number(value) : item.listPrice;
+        const quantity = field === 'quantity' ? Number(value) : item.quantity;
+        const discountRate = field === 'discountRate' ? Number(value) : item.discountRate;
         
         const netPrice = listPrice * (1 - discountRate / 100);
-        const total = Math.round((netPrice * quantity) * 100) / 100;
+        const total = netPrice * quantity;
         
         item.listPrice = listPrice;
         item.quantity = quantity;
         item.discountRate = discountRate;
         item.netPrice = Number(netPrice.toFixed(4));
-        item.total = total;
+        item.total = Number(total.toFixed(2));
         
         if(listPrice > 0) item.found = true;
     }
@@ -53,195 +53,239 @@ export const QuoteTable: React.FC<QuoteTableProps> = ({
     setItems(updatedItems);
   };
 
-  const currencies: string[] = Array.from(new Set(items.map(i => i.currency).filter((c): c is string => !!c)));
+  const removeItem = (index: number) => {
+      if(confirm('Bu satırı silmek istiyor musunuz?')) {
+          setItems(items.filter((_, i) => i !== index));
+      }
+  };
+
+  const currencies = Array.from(new Set(items.map(i => i.currency).filter((c): c is string => !!c)));
   
   const calculateCurrencyTotals = (curr: string) => {
-      const filtered = items.filter(i => i.currency === curr && i.found);
-      const grossTotal = filtered.reduce((sum, item) => sum + (item.quantity * item.listPrice), 0);
-      const netTotalLines = filtered.reduce((sum, item) => sum + item.total, 0);
+      const subtotal = items
+        .filter(i => i.currency === curr && i.found)
+        .reduce((sum, item) => sum + item.total, 0);
       
-      const lineDiscountAmount = grossTotal - netTotalLines;
-      const globalDiscountAmount = netTotalLines * (globalDiscount / 100);
-      const totalDiscount = lineDiscountAmount + globalDiscountAmount;
-      
-      const taxableAmount = grossTotal - totalDiscount;
-      const vatAmount = Math.round((taxableAmount * (vatRate / 100)) * 100) / 100;
-      const grandTotal = Math.round((taxableAmount + vatAmount) * 100) / 100;
+      const globalDiscountAmount = subtotal * (globalDiscount / 100);
+      const afterDiscount = subtotal - globalDiscountAmount;
+      const vatAmount = afterDiscount * (vatRate / 100);
+      const grandTotal = afterDiscount + vatAmount;
 
-      return { grossTotal, totalDiscount, taxableAmount, vatAmount, grandTotal };
+      return { subtotal, globalDiscountAmount, afterDiscount, vatAmount, grandTotal };
+  };
+
+  const handlePdfExport = async () => {
+      setIsExporting(true);
+      try {
+          await exportToPdf(items, settings, customerInfo, globalDiscount, vatRate);
+      } catch (error) {
+          console.error(error);
+          alert("PDF oluşturulurken bir hata oluştu.");
+      } finally {
+          setIsExporting(false);
+      }
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border border-blue-100 overflow-hidden flex flex-col h-full">
-      {/* Clean Blue Header */}
-      <div className="p-4 border-b border-blue-100 flex flex-wrap items-center justify-between gap-4 bg-gradient-to-r from-blue-700 to-blue-600 text-white">
-        <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center text-white backdrop-blur-sm">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-            </div>
-            <div>
-                <h2 className="text-lg font-bold uppercase tracking-tight text-white leading-tight">TEKLİF ÇALIŞMA MASASI</h2>
-                <p className="text-[10px] text-blue-100 font-medium uppercase tracking-wider">Teknik Doğrulama Denetimi Aktif</p>
-            </div>
-        </div>
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col w-full h-full">
+      {/* Toolbar */}
+      <div className="p-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-4 bg-gray-50 shrink-0">
+        <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          3. Teklif Önizleme & Düzenleme
+        </h2>
         <div className="flex gap-2">
             {onSave && (
-                <button onClick={onSave} className="text-[11px] font-bold bg-white/10 hover:bg-white/20 border border-white/30 text-white px-4 py-2 rounded-lg transition-all active:scale-95">
-                    KAYDET
+                <button onClick={onSave} className="text-sm bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-700 px-3 py-1.5 rounded-md font-medium transition-colors flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg> Kaydet
                 </button>
             )}
-            <button onClick={() => exportToExcel(items, settings, customerInfo, globalDiscount, vatRate)} className="text-[11px] font-bold bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-sm transition-all flex items-center gap-2 active:scale-95">
-                EXCEL ÇIKTI
+            <button onClick={() => exportToExcel(items, settings, customerInfo, globalDiscount, vatRate)} className="text-sm bg-green-50 border border-green-200 hover:bg-green-100 text-green-700 px-3 py-1.5 rounded-md font-medium transition-colors flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg> Excel
             </button>
             <button 
-                onClick={() => {
-                    setIsExporting(true);
-                    exportToPdf(items, settings, customerInfo, globalDiscount, vatRate).finally(() => setIsExporting(false));
-                }} 
+                onClick={handlePdfExport} 
                 disabled={isExporting}
-                className={`text-[11px] font-bold bg-blue-500 hover:bg-blue-400 text-white px-4 py-2 rounded-lg shadow-sm transition-all flex items-center gap-2 active:scale-95 ${isExporting ? 'opacity-50 cursor-wait' : ''}`}
+                className={`text-sm bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-md font-medium transition-colors flex items-center gap-2 ${isExporting ? 'opacity-50 cursor-wait' : ''}`}
             >
-                {isExporting ? "İŞLENİYOR..." : "PDF OLARAK PAYLAŞ"}
+                {isExporting ? (
+                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                )}
+                PDF İndir
             </button>
         </div>
       </div>
 
-      {/* Clean Table Body */}
-      <div className="overflow-auto flex-grow bg-white custom-scrollbar">
-        <table className="min-w-full divide-y divide-blue-50">
-          <thead className="bg-blue-50/50 sticky top-0 z-10 border-b border-blue-100">
+      {/* Main Table Area */}
+      <div className="overflow-auto flex-grow p-0 min-h-[300px]">
+        <table className="min-w-full divide-y divide-gray-200 border-separate border-spacing-0">
+          <thead className="bg-gray-100 sticky top-0 z-10 shadow-sm">
             <tr>
-              <th className="px-4 py-3 text-center text-[11px] font-bold text-blue-700 uppercase tracking-wider">No</th>
-              <th className="px-4 py-3 text-left text-[11px] font-bold text-blue-700 uppercase tracking-wider">Marka</th>
-              <th className="px-4 py-3 text-left text-[11px] font-bold text-blue-700 uppercase tracking-wider">Ürün Tanımı</th>
-              <th className="px-4 py-3 text-right text-[11px] font-bold text-blue-700 uppercase tracking-wider">Miktar</th>
-              <th className="px-4 py-3 text-right text-[11px] font-bold text-blue-700 uppercase tracking-wider">Birim Fiyat</th>
-              <th className="px-4 py-3 text-center text-[11px] font-bold text-blue-700 uppercase tracking-wider">İsk%</th>
-              <th className="px-4 py-3 text-right text-[11px] font-bold text-blue-700 uppercase tracking-wider">Net Tutar</th>
+              <th className="w-8 px-2 py-3 border-b border-gray-200"></th>
+              <th className="px-2 py-3 text-center text-xs font-bold text-gray-600 uppercase border-b border-gray-200 w-10">No</th>
+              <th className="px-2 py-3 text-left text-xs font-bold text-gray-600 uppercase border-b border-gray-200">Stok Kodu</th>
+              <th className="px-2 py-3 text-left text-xs font-bold text-gray-600 uppercase border-b border-gray-200">Marka</th>
+              <th className="px-2 py-3 text-left text-xs font-bold text-gray-600 uppercase w-1/3 border-b border-gray-200">Ürün Açıklaması</th>
+              <th className="px-2 py-3 text-right text-xs font-bold text-gray-600 uppercase w-20 border-b border-gray-200">Miktar</th>
+              <th className="px-2 py-3 text-right text-xs font-bold text-gray-600 uppercase w-28 border-b border-gray-200">Birim F.</th>
+              <th className="px-2 py-3 text-center text-xs font-bold text-gray-600 uppercase w-16 border-b border-gray-200">İsk%</th>
+              <th className="px-2 py-3 text-right text-xs font-bold text-gray-600 uppercase border-b border-gray-200">Net F.</th>
+              <th className="px-2 py-3 text-right text-xs font-bold text-gray-900 uppercase border-b border-gray-200">Tutar</th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-100">
-            {items.map((item, idx) => (
-              <tr key={idx} className={`group transition-all hover:bg-blue-50/30 ${!item.found ? 'bg-red-50/50' : 'bg-white'}`}>
-                <td className="px-4 py-3 text-center text-[11px] font-bold text-gray-400">{idx + 1}</td>
-                <td className="px-4 py-3">
-                   <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded border border-blue-100 uppercase tracking-tight">{item.brand || "---"}</span>
+          <tbody className="bg-white text-sm">
+            {items.map((item, idx) => {
+              const displayValue = item.catalogName || item.originalRequest;
+              const isMissing = !item.found || !item.catalogName;
+
+              return (
+              <tr key={idx} className={`group ${!item.found ? 'bg-red-50' : 'hover:bg-blue-50'} transition-colors`}>
+                <td className="px-2 py-2 text-center border-b border-gray-100">
+                    <button onClick={() => removeItem(idx)} className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-2 py-2 text-center text-gray-500 text-xs font-mono border-b border-gray-100">
+                    {idx + 1}
+                </td>
+                <td className="px-2 py-2 border-b border-gray-100">
+                  <input 
+                    className="w-full bg-transparent focus:bg-white border border-transparent focus:border-blue-300 rounded px-1 outline-none text-xs font-mono text-gray-600"
+                    value={item.stockCode || ""}
+                    onChange={(e) => updateItem(idx, 'stockCode', e.target.value)}
+                  />
+                </td>
+                 <td className="px-2 py-2 border-b border-gray-100">
+                  <input 
+                    className="w-full bg-transparent focus:bg-white border border-transparent focus:border-blue-300 rounded px-1 outline-none text-xs font-semibold text-blue-800"
+                    value={item.brand || ""}
+                    onChange={(e) => updateItem(idx, 'brand', e.target.value)}
+                  />
+                </td>
+                <td className="px-2 py-2 border-b border-gray-100">
                     <div className="flex flex-col">
-                        <span className={`text-sm font-semibold leading-tight ${!item.found ? 'text-red-700' : 'text-slate-800'}`}>
-                            {item.catalogName || item.originalRequest}
-                        </span>
-                        {item.notes && <span className="text-[10px] text-blue-600 font-medium mt-1 italic">{item.notes}</span>}
-                        {!item.found && <span className="text-[9px] text-red-600 font-bold uppercase mt-1">Lütfen Manuel Fiyat Girin</span>}
+                        <input 
+                            className={`w-full bg-transparent focus:bg-white border border-transparent focus:border-blue-300 rounded px-1 outline-none font-medium ${isMissing ? 'text-red-600 font-bold' : 'text-gray-900'}`}
+                            value={displayValue}
+                            onChange={(e) => updateItem(idx, 'catalogName', e.target.value)}
+                        />
                     </div>
                 </td>
-                <td className="px-4 py-3 text-right">
+                <td className="px-2 py-2 text-right border-b border-gray-100">
                     <div className="flex items-center justify-end gap-1">
                         <input 
                             type="number"
-                            className="w-16 text-right border border-gray-200 focus:border-blue-400 rounded px-1.5 py-1 text-sm font-bold outline-none"
+                            className="w-12 text-right bg-transparent focus:bg-white border border-transparent focus:border-blue-300 rounded px-1 text-gray-900 outline-none"
                             value={item.quantity}
                             onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
                         />
-                        <span className="text-[10px] text-gray-500 font-bold uppercase">{item.unit || 'AD'}</span>
+                        <input 
+                             className="w-10 text-xs text-gray-500 bg-transparent outline-none text-right"
+                             value={item.unit}
+                             onChange={(e) => updateItem(idx, 'unit', e.target.value)}
+                        />
                     </div>
                 </td>
-                <td className="px-4 py-3 text-right">
+                <td className="px-2 py-2 text-right border-b border-gray-100">
                     <div className="flex items-center justify-end gap-1">
                         <input 
                             type="number"
-                            step="0.01"
-                            className={`w-28 text-right border rounded px-1.5 py-1 text-sm font-bold outline-none transition-all ${!item.found ? 'border-red-300 bg-red-50 text-red-700' : 'border-gray-200 text-slate-800'}`}
+                            className="w-20 text-right bg-transparent focus:bg-white border border-transparent focus:border-blue-300 rounded px-1 text-gray-500 outline-none"
                             value={item.listPrice}
                             onChange={(e) => updateItem(idx, 'listPrice', e.target.value)}
                         />
-                        <span className="text-[10px] text-gray-500 font-bold">{item.currency || 'TL'}</span>
+                        <select
+                             className="w-14 text-xs font-bold text-gray-600 bg-transparent outline-none text-right cursor-pointer hover:text-blue-600"
+                             value={item.currency}
+                             onChange={(e) => updateItem(idx, 'currency', e.target.value)}
+                        >
+                            <option value="TL">TL</option>
+                            <option value="USD">USD</option>
+                            <option value="EUR">EUR</option>
+                        </select>
                     </div>
                 </td>
-                <td className="px-4 py-3 text-center">
+                <td className="px-2 py-2 text-center border-b border-gray-100">
                     <input 
                          type="number" 
-                         className="w-14 border border-emerald-200 rounded px-1 py-1 text-xs text-center font-bold text-emerald-700 bg-emerald-50 focus:border-emerald-400 outline-none"
+                         className="w-10 border border-gray-200 rounded px-1 py-1 text-xs text-center focus:ring-1 focus:ring-blue-500"
                          value={item.discountRate}
                          onChange={(e) => updateItem(idx, 'discountRate', e.target.value)}
                      />
                 </td>
-                <td className="px-4 py-3 text-right font-bold text-sm text-slate-800">
-                  <div className="flex flex-col items-end">
-                    <span>{formatNum(item.total)}</span>
-                    <span className="text-[9px] text-gray-400 uppercase">{item.currency || 'TL'}</span>
-                  </div>
+                <td className="px-2 py-2 text-right font-medium text-gray-700 border-b border-gray-100">
+                    {item.found || item.listPrice > 0 ? formatNum(item.netPrice) : '-'}
+                </td>
+                <td className="px-2 py-2 text-right font-bold text-gray-900 border-b border-gray-100">
+                  {item.found || item.listPrice > 0 ? `${formatNum(item.total)}` : <span className="text-red-500 text-xs font-bold">MEVCUT DEĞİL</span>}
                 </td>
               </tr>
-            ))}
+            )})}
           </tbody>
         </table>
       </div>
 
-      {/* Modern Professional Footer */}
-      <div className="bg-gray-50 border-t border-blue-100 p-6">
-          <div className="flex flex-col lg:flex-row justify-between items-start gap-8">
-              {/* Settings Panel */}
-              <div className="w-full lg:w-auto space-y-4">
-                  <h4 className="text-[11px] font-bold text-blue-600 uppercase tracking-widest flex items-center gap-2">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    TEKLİF KONTROL PANELİ
-                  </h4>
-                  <div className="flex flex-wrap gap-6 p-4 bg-white rounded-xl border border-blue-50 shadow-sm">
-                      <div className="flex flex-col gap-1.5">
-                          <label className="text-[10px] font-bold text-gray-500 uppercase">Global İskonto (%)</label>
-                          <div className="relative">
-                            <input type="number" className="w-32 bg-white border border-gray-200 rounded-lg px-3 py-2 text-xl font-bold text-emerald-600 outline-none focus:border-emerald-400" value={globalDiscount} onChange={(e) => setGlobalDiscount(Number(e.target.value))} />
-                            <span className="absolute right-3 top-2 text-xl text-gray-300 font-bold">%</span>
-                          </div>
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                          <label className="text-[10px] font-bold text-gray-500 uppercase">KDV Uygulaması</label>
-                          <select className="w-40 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm font-bold text-gray-700 outline-none focus:border-blue-400" value={vatRate} onChange={(e) => setVatRate(Number(e.target.value))}>
-                            <option value="0">KDV HARİÇ</option>
-                            <option value="10">%10 KDV</option>
-                            <option value="20">%20 KDV</option>
-                          </select>
-                      </div>
+      {/* --- Footer Area --- */}
+      <div className="bg-gray-50 border-t border-gray-200 p-4 shrink-0">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+              
+              <div className="flex gap-4 p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
+                  <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-gray-500 uppercase">Genel İskonto %</label>
+                      <input 
+                        type="number" 
+                        className="w-24 border border-gray-300 rounded px-2 py-1 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none"
+                        value={globalDiscount}
+                        onChange={(e) => setGlobalDiscount(Number(e.target.value))}
+                      />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-gray-500 uppercase">KDV Oranı %</label>
+                      <select 
+                        className="w-24 border border-gray-300 rounded px-2 py-1 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                        value={vatRate}
+                        onChange={(e) => setVatRate(Number(e.target.value))}
+                      >
+                        <option value="0">0</option>
+                        <option value="1">1</option>
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                      </select>
                   </div>
               </div>
 
-              {/* Summary Cards */}
-              <div className="flex flex-wrap gap-4 justify-center lg:justify-end flex-grow w-full">
-                  {currencies.map((curr: string) => {
-                      const t = calculateCurrencyTotals(curr);
+              <div className="flex flex-wrap gap-4 justify-end flex-grow">
+                  {currencies.map((curr) => {
+                      const totals = calculateCurrencyTotals(curr as string);
                       return (
-                        <div key={curr} className="min-w-[320px] bg-white rounded-2xl p-6 border border-blue-100 shadow-sm space-y-3">
-                            <div className="flex justify-between items-center pb-2 border-b border-gray-50">
-                                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">{curr} HESABI</span>
-                                <div className="bg-blue-50 text-blue-600 text-[9px] px-2 py-1 rounded-full font-bold uppercase">Kesin Döküm</div>
+                        <div key={curr as string} className="min-w-[220px] bg-white rounded-lg border border-blue-100 shadow-sm overflow-hidden">
+                            <div className="bg-blue-50 px-3 py-1.5 border-b border-blue-100 flex justify-between items-center">
+                                <span className="text-xs font-bold text-blue-800">{curr} HESABI</span>
+                                <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
                             </div>
-
-                            <div className="space-y-1.5 text-xs">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-gray-400 uppercase text-[9px] font-bold">ARA TOPLAM</span>
-                                    <span className="text-gray-700 font-bold">{formatNum(t.grossTotal)} {curr}</span>
+                            <div className="p-3 space-y-1">
+                                <div className="flex justify-between text-xs text-gray-500">
+                                    <span>Ara Toplam:</span>
+                                    <span>{formatNum(totals.subtotal)}</span>
                                 </div>
-                                <div className="flex justify-between items-center text-red-500">
-                                    <span className="text-red-400 uppercase text-[9px] font-bold">TOPLAM İSKONTO</span>
-                                    <span className="font-bold">-{formatNum(t.totalDiscount)} {curr}</span>
+                                {totals.globalDiscountAmount > 0 && (
+                                    <div className="flex justify-between text-xs text-red-500">
+                                        <span>İskonto:</span>
+                                        <span>-{formatNum(totals.globalDiscountAmount)}</span>
+                                    </div>
+                                )}
+                                <div className="flex justify-between text-xs text-gray-500">
+                                    <span>KDV ({vatRate}%):</span>
+                                    <span>+{formatNum(totals.vatAmount)}</span>
                                 </div>
-                                <div className="flex justify-between items-center text-gray-700 pt-2 border-t border-gray-50">
-                                    <span className="uppercase text-[9px] font-bold">MATRAH</span>
-                                    <span className="text-sm font-bold">{formatNum(t.taxableAmount)} {curr}</span>
+                                <div className="pt-2 mt-1 border-t border-gray-100 flex justify-between items-baseline">
+                                    <span className="text-sm font-bold text-gray-800">TOPLAM:</span>
+                                    <span className="text-lg font-bold text-blue-700">{formatNum(totals.grandTotal)} <span className="text-xs font-normal text-gray-400">{curr}</span></span>
                                 </div>
-                                <div className="flex justify-between items-center text-gray-400">
-                                    <span className="uppercase text-[9px] font-bold">KDV (%{vatRate})</span>
-                                    <span className="font-medium">+{formatNum(t.vatAmount)} {curr}</span>
-                                </div>
-                            </div>
-
-                            <div className="pt-3 border-t border-blue-50 flex justify-between items-baseline">
-                                <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">GENEL TOPLAM</span>
-                                <span className="text-2xl text-blue-700 font-extrabold tracking-tight">
-                                    {formatNum(t.grandTotal)} <small className="text-[10px] font-bold text-gray-400">{curr}</small>
-                                </span>
                             </div>
                         </div>
                       );

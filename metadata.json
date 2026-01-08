@@ -1,6 +1,5 @@
-
 {
-  "name": "ProQuote: Profesyonel Teklif Hazırlama Sistemi",
-  "description": "Katalog verilerini kullanarak hızlı ve hatasız kurumsal teklif formları oluşturan operasyonel asistan.",
+  "name": "ProQuote: Teklif Asistanı",
+  "description": "PDF tedarikçi kataloglarından otomatik fiyatlandırma ve teklif tablosu oluşturan akıllı asistan.",
   "requestFramePermissions": []
 }

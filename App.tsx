@@ -18,7 +18,6 @@ const App: React.FC = () => {
   const [catalogIndex, setCatalogIndex] = useState<CatalogIndex | null>(null);
   
   const [requestText, setRequestText] = useState<string>("");
-  // CHANGED: Supports various file types (PDF, Excel, Images)
   const [requestFiles, setRequestFiles] = useState<RequestFile[]>([]);
   
   const [quoteItems, setQuoteItems] = useState<QuoteItem[]>([]);
@@ -38,7 +37,7 @@ const App: React.FC = () => {
         website: '',
         deliveryTerms: 'Depo Teslim',
         validityDays: 7,
-        themeColor: '#1e3a8a', // Default Navy Blue
+        themeColor: '#1e3a8a', 
         services: [],
         partnerLogos: [],
         defaultDiscount: 0,
@@ -68,7 +67,6 @@ const App: React.FC = () => {
   }, [quoteHistory]);
 
   const handleAnalyzeOrRevise = async () => {
-    // If no index exists, we need files. If index exists, we can proceed without active file selection (as they are cached).
     if (files.length === 0 && !catalogIndex) {
       alert("Lütfen en az bir fiyat kataloğu yükleyin veya önceden analiz edilmiş bir veri seti kullanın.");
       return;
@@ -84,19 +82,14 @@ const App: React.FC = () => {
     try {
       let result: QuoteItem[];
       
-      // DECISION: Are we creating new or revising?
       if (quoteItems.length > 0) {
-          // REVISION MODE (Usually text based)
           result = await geminiService.reviseQuoteRequest(files, quoteItems, requestText, settings);
       } else {
-          // NEW QUOTE MODE
           result = await geminiService.processQuoteRequest(files, catalogIndex, requestText, requestFiles, settings);
       }
 
       setQuoteItems(result);
-      // Clear inputs but keep file state
       if (!quoteItems.length) { 
-          // Only clear if it was a fresh request
           setRequestText(""); 
           setRequestFiles([]);
       }
@@ -148,7 +141,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-100">
+    <div className="min-h-screen flex flex-col bg-[#f3f4f6]">
       <Header onOpenSettings={() => setIsSettingsOpen(true)} />
       
       <SettingsModal 
@@ -175,17 +168,17 @@ const App: React.FC = () => {
           </div>
       </div>
       
-      <main className="flex-grow p-4 md:p-6 max-w-[1800px] mx-auto w-full">
+      <main className="flex-grow p-4 md:p-6 max-w-[1800px] mx-auto w-full overflow-y-auto">
         
         {activeTab === 'history' && (
             <QuoteHistory history={quoteHistory} onLoad={loadQuote} onDelete={deleteQuote} />
         )}
 
         {activeTab === 'create' && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-10rem)]">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:min-h-[calc(100vh-12rem)]">
             
             {/* Left Column (Inputs) */}
-            <div className="lg:col-span-4 flex flex-col gap-4 h-full overflow-y-auto pr-2 pb-10 custom-scrollbar">
+            <div className="lg:col-span-4 flex flex-col gap-4 h-full">
                 <CatalogManager 
                     files={files} 
                     setFiles={setFiles} 
@@ -193,7 +186,7 @@ const App: React.FC = () => {
                     setCatalogIndex={setCatalogIndex}
                 />
                 <CustomerInfoPanel info={customerInfo} setInfo={setCustomerInfo} />
-                <div className="flex-grow min-h-[300px] shrink-0">
+                <div className="flex-grow min-h-[400px]">
                     <RequestInput 
                         request={requestText} 
                         setRequest={setRequestText}
@@ -208,9 +201,9 @@ const App: React.FC = () => {
             </div>
 
             {/* Right Column (Table) */}
-            <div className="lg:col-span-8 h-full pb-2">
+            <div className="lg:col-span-8 h-full min-h-[600px] flex flex-col">
                 {status === AppStatus.ERROR && (
-                <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4 rounded shadow-sm">
+                <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4 rounded shadow-sm shrink-0">
                     <div className="flex">
                     <div className="flex-shrink-0">
                         <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>
@@ -224,7 +217,7 @@ const App: React.FC = () => {
                 )}
 
                 {status === AppStatus.IDLE && quoteItems.length === 0 && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 h-full flex flex-col items-center justify-center text-gray-400 p-12 text-center">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex-grow flex flex-col items-center justify-center text-gray-400 p-12 text-center">
                     <div className="bg-blue-50 p-6 rounded-full mb-6 relative group cursor-pointer hover:bg-blue-100 transition-colors">
                         <svg className="w-16 h-16 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                         {catalogIndex && (
@@ -241,17 +234,19 @@ const App: React.FC = () => {
                 )}
 
                 {(status === AppStatus.SUCCESS || status === AppStatus.PROCESSING || quoteItems.length > 0) && (
-                <QuoteTable 
-                    items={quoteItems} 
-                    setItems={setQuoteItems} 
-                    settings={settings} 
-                    customerInfo={customerInfo}
-                    globalDiscount={globalDiscount}
-                    setGlobalDiscount={setGlobalDiscount}
-                    vatRate={vatRate}
-                    setVatRate={setVatRate}
-                    onSave={saveCurrentQuote}
-                />
+                <div className="flex-grow flex flex-col min-h-0 overflow-visible">
+                  <QuoteTable 
+                      items={quoteItems} 
+                      setItems={setQuoteItems} 
+                      settings={settings} 
+                      customerInfo={customerInfo}
+                      globalDiscount={globalDiscount}
+                      setGlobalDiscount={setGlobalDiscount}
+                      vatRate={vatRate}
+                      setVatRate={setVatRate}
+                      onSave={saveCurrentQuote}
+                  />
+                </div>
                 )}
             </div>
             </div>
